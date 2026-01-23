@@ -190,11 +190,22 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
 
     # 2. RAG
     answer = ""
-    if "chain" not in rag_components:
-        # Try lazy load
-        reload_rag()
+    import threading
     
-    if "chain" in rag_components:
+    if "chain" not in rag_components:
+        # Check if already loading? For simplicity, just trigger if missing.
+        # We start a thread to load it so we don't block this request.
+        # But for the VERY first request, the user wants an answer...
+        # Option A: Block but with timeout? No, Render kills it.
+        # Option B: Return "I'm waking up..." and trigger load.
+        
+        def background_load():
+            reload_rag()
+            
+        threading.Thread(target=background_load).start()
+        answer = "I am initializing my memory system 🧠. Please ask me again in about 30 seconds!"
+    
+    elif "chain" in rag_components:
         user = db.query(User).filter(User.id == data.user_id).first()
         user_name = user.full_name if user and user.full_name else "User"
         try:

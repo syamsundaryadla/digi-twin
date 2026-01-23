@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Plus, LogOut, Trash2, User, Bell } from 'lucide-react';
 
-const Sidebar = ({ userId, currentSessionId, onSelectSession, onNewChat }) => {
+const Sidebar = ({ userId, currentSessionId, onSelectSession, onNewChat, isOpen, onClose }) => {
     const [sessions, setSessions] = useState([]);
     const navigate = useNavigate();
     const userName = localStorage.getItem("username") || "User";
@@ -42,48 +42,57 @@ const Sidebar = ({ userId, currentSessionId, onSelectSession, onNewChat }) => {
     };
 
     return (
-        <div className="sidebar">
-            <div className="sidebar-header">
-                <span>RepliMate 🧠</span>
-            </div>
+        <>
+            {/* Mobile Overlay */}
+            {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
 
-            <div className="new-chat-btn" onClick={onNewChat}>
-                <Plus size={18} />
-                <span>New Chat</span>
-            </div>
-
-            <div className="history-list">
-                {sessions.map(sess => (
-                    <div
-                        key={sess.id}
-                        className={`history-item ${currentSessionId === sess.id ? 'active' : ''}`}
-                        onClick={() => onSelectSession(sess.id)}
-                    >
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sess.title}</span>
-                        <Trash2
-                            className="delete-icon"
-                            size={14}
-                            onClick={(e) => handleDelete(e, sess.id)}
-                        />
+            <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+                <div className="sidebar-header">
+                    <span>RepliMate 🧠</span>
+                    {/* Close button for mobile */}
+                    <div className="mobile-close-btn" onClick={onClose} style={{ marginLeft: 'auto', display: window.innerWidth < 768 ? 'block' : 'none', cursor: 'pointer' }}>
+                        &times;
                     </div>
-                ))}
-            </div>
+                </div>
 
-            <div className="sidebar-footer">
-                <div className="profile-btn" onClick={() => navigate("/reminders")}>
-                    <Bell size={16} />
-                    Reminders
+                <div className="new-chat-btn" onClick={() => { onNewChat(); onClose(); }}>
+                    <Plus size={18} />
+                    <span>New Chat</span>
                 </div>
-                <div className="profile-btn" onClick={() => navigate("/profile")}>
-                    <User size={16} />
-                    {userName}
+
+                <div className="history-list">
+                    {sessions.map(sess => (
+                        <div
+                            key={sess.id}
+                            className={`history-item ${currentSessionId === sess.id ? 'active' : ''}`}
+                            onClick={() => { onSelectSession(sess.id); onClose(); }}
+                        >
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sess.title}</span>
+                            <Trash2
+                                className="delete-icon"
+                                size={14}
+                                onClick={(e) => handleDelete(e, sess.id)}
+                            />
+                        </div>
+                    ))}
                 </div>
-                <button className="logout-btn" onClick={handleLogout}>
-                    <LogOut size={16} />
-                    Logout
-                </button>
+
+                <div className="sidebar-footer">
+                    <div className="profile-btn" onClick={() => navigate("/reminders")}>
+                        <Bell size={16} />
+                        Reminders
+                    </div>
+                    <div className="profile-btn" onClick={() => navigate("/profile")}>
+                        <User size={16} />
+                        {userName}
+                    </div>
+                    <button className="logout-btn" onClick={handleLogout}>
+                        <LogOut size={16} />
+                        Logout
+                    </button>
+                </div>
             </div>
-        </div>
+        </>
     );
 };
 

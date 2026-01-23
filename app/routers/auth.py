@@ -39,23 +39,30 @@ def sync_user(data: UserSyncRequest, db: Session = Depends(get_db)):
             username = f"{username}_{uuid.uuid4().hex[:4]}"
 
         # Create user with random password (auth is handled by Supabase)
-        user = User(
+        new_user = User(
             username=username,
             email=data.email,
             password=hash_password(str(uuid.uuid4())), # Dummy password
             full_name=data.full_name or ""
         )
-        db.add(user)
+        db.add(new_user)
         try:
             db.commit()
+            db.refresh(new_user)
+            user = new_user
         except Exception:
             db.rollback()
-            # Fallback retry with new username
-            user.username = f"{user.username}_{uuid.uuid4().hex[:4]}"
-            db.add(user)
-            db.commit()
-            
-        db.refresh(user)
+            # Race condition: User was created by another request in parallel
+            user = db.query(User).filter(User.email == data.email).first()
+            if not user:
+                # If still not found, it might be the username unique constraint. Try again with random username.
+                new_user.username = f"{new_user.username}_{uuid.uuid4().hex[:4]}"
+                db.add(new_user)
+                db.commit()
+                db.refresh(new_user)
+                user = new_user
+            else:
+                is_new = False
 
     return {
         "message": "User synced", 
