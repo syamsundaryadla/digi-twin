@@ -10,7 +10,7 @@ from app.routers.chat import reload_rag
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Load RAG
-    reload_rag()
+    # reload_rag()  <-- Disable to speed up boot time for Render (Lazy load instead)
     yield
     # Shutdown
 
