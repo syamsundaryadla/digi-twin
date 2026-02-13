@@ -1,17 +1,24 @@
-from langchain_community.embeddings import HuggingFaceEmbeddings
+import os
+from dotenv import load_dotenv
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
-# Singleton: Load embedding model once, reuse on every RAG rebuild
+load_dotenv()
+
+# Use Google's embedding API instead of local HuggingFace model
+# This uses near-zero RAM (API call) vs ~400MB for torch + sentence-transformers
 _embeddings = None
 
 def _get_embeddings():
     global _embeddings
     if _embeddings is None:
-        print("[INFO] Loading embedding model (one-time)...")
-        _embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+        print("[INFO] Initializing Google Embedding API...")
+        _embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001",
+            google_api_key=api_key
         )
-        print("[SUCCESS] Embedding model loaded.")
+        print("[SUCCESS] Google Embedding API ready.")
     return _embeddings
 
 def create_vector_store(documents):
