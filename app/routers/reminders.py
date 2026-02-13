@@ -57,3 +57,4 @@ def delete_reminder(reminder_id: int, db: Session = Depends(get_db)):
     db.delete(reminder)
     db.commit()
     return {"message": "Deleted"}
+

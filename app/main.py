@@ -1,11 +1,9 @@
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.routers import auth, chat, users, reminders
-from app.routers.chat import reload_rag
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

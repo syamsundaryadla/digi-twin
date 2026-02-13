@@ -15,3 +15,9 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# Database
+*.db
+
+# Root-level stray Node artifacts (frontend is in frontend-react/)
+/package-lock.json

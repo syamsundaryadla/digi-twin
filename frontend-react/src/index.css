@@ -605,3 +605,84 @@ body {
     transform: translateY(0);
   }
 }
+
+/* ================= MOBILE RESPONSIVE ================= */
+
+/* Hide mobile-only elements on desktop */
+.mobile-menu-btn {
+  display: none;
+}
+
+.mobile-close-btn {
+  display: none;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 998;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    color: #5f6368;
+  }
+
+  .mobile-close-btn {
+    display: block;
+    font-size: 24px;
+    color: #5f6368;
+  }
+
+  .hero-title {
+    font-size: 24px;
+    padding: 0 20px;
+  }
+
+  .chat-list {
+    padding: 20px 16px;
+    padding-bottom: 100px;
+  }
+
+  .message {
+    max-width: 90%;
+  }
+}
+
+/* Toast notification slide-in animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

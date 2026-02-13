@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.env
+node_modules/
+frontend-react/
+data/
+scripts/
+*.md
+.vscode/
+.idea/
+package.json
+package-lock.json

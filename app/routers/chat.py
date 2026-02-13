@@ -1,10 +1,10 @@
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db, User, ChatSession, ChatHistory, UserMemory, Reminder
 from app.rag.loader import load_user_memory
@@ -105,7 +105,7 @@ def process_ai_reminder(user_id: int, question: str, db: Session):
             due_date = parser.parse(due_date_str)
             # Ensure naive or aware match DB expectations (usually naive UTC in this app)
             if due_date.tzinfo:
-                due_date = due_date.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                due_date = due_date.astimezone(timezone.utc).replace(tzinfo=None)
             
             reminder = Reminder(user_id=user_id, content=content, due_date=due_date)
             db.add(reminder)
@@ -163,7 +163,7 @@ def get_history(session_id: str, db: Session = Depends(get_db)):
     return history
 
 @router.post("/chat")
-def chat(data: ChatRequest, db: Session = Depends(get_db)):
+def chat(data: ChatRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # 0. Ensure Session
     session_id = data.session_id
     if not session_id:
@@ -177,12 +177,16 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
     if new_memory:
         db.add(UserMemory(user_id=data.user_id, content=new_memory))
         db.commit()
-        reload_rag()
+        # Trigger RAG reload in background
+        background_tasks.add_task(reload_rag)
 
     # 1.5 Check for Action (Reminder)
     reminder_response = process_ai_reminder(data.user_id, data.question, db)
     if reminder_response:
         # If action taken, return early
+        # Also trigger RAG reload because a new reminder exists
+        background_tasks.add_task(reload_rag)
+        
         db.add(ChatHistory(user_id=data.user_id, session_id=session_id, role="user", content=data.question))
         db.add(ChatHistory(user_id=data.user_id, session_id=session_id, role="assistant", content=reminder_response))
         db.commit()
@@ -190,22 +194,15 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
 
     # 2. RAG
     answer = ""
-    import threading
     
     if "chain" not in rag_components:
         # Check if already loading? For simplicity, just trigger if missing.
-        # We start a thread to load it so we don't block this request.
-        # But for the VERY first request, the user wants an answer...
-        # Option A: Block but with timeout? No, Render kills it.
-        # Option B: Return "I'm waking up..." and trigger load.
+        # We use background_tasks to load it so we don't block this request.
         
-        def background_load():
-            reload_rag()
-            
-        threading.Thread(target=background_load).start()
+        background_tasks.add_task(reload_rag)
         answer = "I am initializing my memory system 🧠. Please ask me again in about 30 seconds!"
     
-    elif "chain" in rag_components:
+    else:
         user = db.query(User).filter(User.id == data.user_id).first()
         user_name = user.full_name if user and user.full_name else "User"
         try:
@@ -217,8 +214,6 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
             answer = response.content
         except Exception as e:
             answer = f"I am having trouble accessing my memory right now. ({str(e)})"
-    else:
-        answer = "I am initializing my memory. Please try again in a moment."
 
     # 3. Save
     db.add(ChatHistory(user_id=data.user_id, session_id=session_id, role="user", content=data.question))

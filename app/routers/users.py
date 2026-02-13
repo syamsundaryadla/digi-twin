@@ -1,29 +1,13 @@
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 
 from app.database import get_db, User, UserMemory
-from app.rag.loader import load_user_memory
-from app.rag.vectorstore import create_vector_store
-from app.rag.chain import build_rag_chain
-# Import reload function from chat router (where state lives)
 from app.routers.chat import reload_rag
 
 router = APIRouter()
-
-# Global state ref (will need invalidation strategy or shared state)
-# For now, we will assume the main app manages RAG invalidation or we expose a helper
-# Actually, let's keep the reload_rag logic here or import it if centralized.
-# For simplicity in this refactor, we'll keep a lightweight reload here or just not reload perfectly.
-# Better: User updates profile -> doesn't affect RAG much. Memory deletion -> affects RAG.
-
-# We need access to the rag_components global or a way to signal. 
-# For this refactor, let's export a signal function in main or dependencies.
-# Simplest approach for MVP refactor: Import the reload function from a common module or main?
-# Circular import risk if importing from main. 
-# Plan: Move RAG state management to a new module `app/rag/state.py`
 
 # --- Schemas ---
 class ProfileUpdate(BaseModel):
@@ -57,26 +41,27 @@ def get_memories(user_id: int, db: Session = Depends(get_db)):
     return memories
 
 @router.delete("/memories/{memory_id}")
-def delete_memory(memory_id: int, db: Session = Depends(get_db)):
+def delete_memory(memory_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     memory = db.query(UserMemory).filter(UserMemory.id == memory_id).first()
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
     
     db.delete(memory)
     db.commit()
-    # Trigger RAG reload to remove memory from AI context
-    reload_rag()
+    # Trigger RAG reload in background
+    background_tasks.add_task(reload_rag)
     return {"message": "Memory deleted"}
 
 class CreateMemoryRequest(BaseModel):
     items: List[str]
 
 @router.post("/memories/{user_id}")
-def add_memories(user_id: int, data: CreateMemoryRequest, db: Session = Depends(get_db)):
+def add_memories(user_id: int, data: CreateMemoryRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Bulk add memories (e.g. from Onboarding)"""
     for content in data.items:
         if content and content.strip():
             db.add(UserMemory(user_id=user_id, content=content.strip()))
     db.commit()
-    reload_rag()
+    # Trigger RAG reload in background
+    background_tasks.add_task(reload_rag)
     return {"message": "Memories added"}

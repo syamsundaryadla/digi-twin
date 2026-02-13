@@ -50,7 +50,7 @@ const Sidebar = ({ userId, currentSessionId, onSelectSession, onNewChat, isOpen,
                 <div className="sidebar-header">
                     <span>RepliMate 🧠</span>
                     {/* Close button for mobile */}
-                    <div className="mobile-close-btn" onClick={onClose} style={{ marginLeft: 'auto', display: window.innerWidth < 768 ? 'block' : 'none', cursor: 'pointer' }}>
+                    <div className="mobile-close-btn" onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer' }}>
                         &times;
                     </div>
                 </div>
